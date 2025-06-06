@@ -2,48 +2,47 @@ import React, { useEffect, useState } from "react";
 import "./App.css";
 
 const API_KEY = import.meta.env.VITE_PIXABAY_API_KEY;
+const API_URL = `https://pixabay.com/api/?key=${API_KEY}&q=animal&image_type=photo&category=animals&per_page=200`;
 
-const App = () => {
+function App() {
   const [images, setImages] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
 
-  // Shuffle helper
-  const shuffleArray = (array) => {
-    return array
-      .map((value) => ({ value, sort: Math.random() }))
-      .sort((a, b) => a.sort - b.sort)
-      .map(({ value }) => value);
-  };
-
-  const extractNameFromTags = (tags) => {
-    console.log(tags)
-    const nameList = tags.split(",").map((t) => t.trim());
-    const firstTag = `${nameList[0]}${nameList[1] ? ", " + nameList[1] : ""}`;
-    return firstTag.charAt(0).toUpperCase() + firstTag.slice(1);
-  };
+  useEffect(() => {
+    fetch(API_URL)
+      .then(res => res.json())
+      .then(data => {
+        const shuffled = shuffleArray(data.hits);
+        const formatted = shuffled.map(hit => ({
+          image: hit.largeImageURL,
+          name: extractNameFromTags(hit.tags),
+        }));
+        setImages(formatted);
+      });
+  }, []);
 
   useEffect(() => {
-    const fetchImages = async () => {
-      let allHits = [];
-      for (let page = 1; page <= 3; page++) {
-        const res = await fetch(
-          `https://pixabay.com/api/?key=${API_KEY}&q=animal&image_type=photo&category=animals&per_page=100&page=${page}`
-        );
-        const data = await res.json();
-        allHits = allHits.concat(data.hits);
-      }
+    preloadImage(currentIndex + 1);
+    preloadImage(currentIndex - 1);
+  }, [currentIndex, images]);
 
-      const formatted = allHits.map((hit) => ({
-        image: hit.largeImageURL,
-        name: extractNameFromTags(hit.tags),
-      }));
+  const extractNameFromTags = tags => {
+    const nameList = tags.split(",");
+    const firstTag = `${nameList[0]}, ${nameList[1] || ""}`;
+    return firstTag.charAt(0).toUpperCase() + firstTag.slice(1).trim();
+  };
 
-      setImages(shuffleArray(formatted));
-    };
+  const shuffleArray = arr => {
+    return [...arr].sort(() => Math.random() - 0.5);
+  };
 
-    fetchImages();
-  }, []);
+  const preloadImage = index => {
+    if (images[index]) {
+      const img = new Image();
+      img.src = images[index].image;
+    }
+  };
 
   const handleNext = () => {
     if (currentIndex < images.length - 1) {
@@ -76,17 +75,24 @@ const App = () => {
         />
       </div>
       <div className="buttons">
-        <button onClick={handlePrevious}>⏮ Previous</button>
+        <button onClick={handlePrevious} disabled={currentIndex === 0}>
+          ⏮ Previous
+        </button>
         <button onClick={handleReveal}>
           {showAnswer ? "🙈 Hide" : "👁 Reveal"}
         </button>
-        <button onClick={handleNext}>Next ⏭</button>
+        <button
+          onClick={handleNext}
+          disabled={currentIndex >= images.length - 1}
+        >
+          Next ⏭
+        </button>
       </div>
       {showAnswer && (
         <p className="answer">Answer: {images[currentIndex].name}</p>
       )}
     </div>
   );
-};
+}
 
 export default App;
