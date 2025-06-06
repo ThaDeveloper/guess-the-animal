@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import "./App.css";
 
 const API_KEY = import.meta.env.VITE_PIXABAY_API_KEY;
-const API_URL = `https://pixabay.com/api/?key=${API_KEY}&q=animal&image_type=photo&category=animals&per_page=200`;
+const API_URL = (page = 1) =>
+  `https://pixabay.com/api/?key=${API_KEY}&q=wild+animals&image_type=photo&category=animals&per_page=200&page=${page}&safesearch=true`;
 
 function App() {
   const [images, setImages] = useState([]);
@@ -10,15 +11,27 @@ function App() {
   const [showAnswer, setShowAnswer] = useState(false);
 
   useEffect(() => {
-    fetch(API_URL)
-      .then(res => res.json())
-      .then(data => {
+    const randomPage = Math.floor(Math.random() * 5) + 1;
+
+    fetch(API_URL(randomPage))
+      .then((res) => res.json())
+      .then((data) => {
+        const seen = new Set();
         const shuffled = shuffleArray(data.hits);
-        const formatted = shuffled.map(hit => ({
-          image: hit.largeImageURL,
-          name: extractNameFromTags(hit.tags),
-        }));
-        setImages(formatted);
+
+        const uniqueImages = shuffled
+          .map((hit) => ({
+            image: hit.largeImageURL,
+            name: extractNameFromTags(hit.tags),
+          }))
+          .filter((item) => {
+            const key = item.name.toLowerCase();
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+        setImages(uniqueImages);
       });
   }, []);
 
@@ -27,30 +40,30 @@ function App() {
     preloadImage(currentIndex - 1);
   }, [currentIndex, images]);
 
-  const extractNameFromTags = tags => {
+  const extractNameFromTags = (tags) => {
     const nameList = tags
       .split(",")
-      .map(tag => tag.trim())
-      .filter(tag => /^[a-z\s]+$/i.test(tag))  // Only alphabetic tags
-      .filter(tag => tag.length < 20);         // Skip long phrases
-  
-    // Prioritize first specific-looking tag
-    const likelyAnimal = nameList.find(tag =>
-      /^[a-z]+$/i.test(tag) && !["wildlife", "animal", "mammal", "nature", "zoo"].includes(tag.toLowerCase())
+      .map((tag) => tag.trim())
+      .filter((tag) => /^[a-z\s]+$/i.test(tag))
+      .filter((tag) => tag.length < 20);
+
+    const likelyAnimal = nameList.find(
+      (tag) =>
+        /^[a-z]+$/i.test(tag) &&
+        !["wildlife", "animal", "mammal", "nature", "zoo"].includes(tag.toLowerCase())
     );
-  
-    const fallback = `${nameList[0]}, ${nameList[1] || ""}` || "Unknown animal";
+
+    const fallback = `${nameList[0] || ""}, ${nameList[1] || ""}`;
     const result = `${likelyAnimal}(${fallback})`;
-  
+
     return result.charAt(0).toUpperCase() + result.slice(1);
   };
-  
 
-  const shuffleArray = arr => {
+  const shuffleArray = (arr) => {
     return [...arr].sort(() => Math.random() - 0.5);
   };
 
-  const preloadImage = index => {
+  const preloadImage = (index) => {
     if (images[index]) {
       const img = new Image();
       img.src = images[index].image;
