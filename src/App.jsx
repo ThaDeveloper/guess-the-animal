@@ -28,10 +28,23 @@ function App() {
   }, [currentIndex, images]);
 
   const extractNameFromTags = tags => {
-    const nameList = tags.split(",");
-    const firstTag = `${nameList[0]}, ${nameList[1] || ""}`;
-    return firstTag.charAt(0).toUpperCase() + firstTag.slice(1).trim();
+    const nameList = tags
+      .split(",")
+      .map(tag => tag.trim())
+      .filter(tag => /^[a-z\s]+$/i.test(tag))  // Only alphabetic tags
+      .filter(tag => tag.length < 20);         // Skip long phrases
+  
+    // Prioritize first specific-looking tag
+    const likelyAnimal = nameList.find(tag =>
+      /^[a-z]+$/i.test(tag) && !["wildlife", "animal", "mammal", "nature", "zoo"].includes(tag.toLowerCase())
+    );
+  
+    const fallback = `${nameList[0]}, ${nameList[1] || ""}` || "Unknown animal";
+    const result = `${likelyAnimal}(${fallback})`;
+  
+    return result.charAt(0).toUpperCase() + result.slice(1);
   };
+  
 
   const shuffleArray = arr => {
     return [...arr].sort(() => Math.random() - 0.5);
